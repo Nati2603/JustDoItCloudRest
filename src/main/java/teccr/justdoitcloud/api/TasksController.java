@@ -49,9 +49,15 @@ public class TasksController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Task> getTaskById(@PathVariable Long id) {
+    public ResponseEntity<Task> getTaskById(@PathVariable Long id, @PathVariable Long userId) {
         Optional<Task> taskOpt = taskService.getTaskById(id);
-        return taskOpt.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
+        if (taskOpt.isPresent()) {
+            Task task = taskOpt.get();
+            if (task.getUserId().equals(userId)) {
+                return new ResponseEntity<>(task, HttpStatus.OK);
+            }
+        }
+        return new ResponseEntity<>(HttpStatus.NOT_FOUND);
     }
 
     @PatchMapping("/{id}")
