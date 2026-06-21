@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import teccr.justdoitcloud.data.Task;
 import teccr.justdoitcloud.data.User;
+import teccr.justdoitcloud.exceptions.InvalidTaskUserException;
 import teccr.justdoitcloud.service.TaskService;
 
 import java.util.Optional;
@@ -50,33 +51,30 @@ public class TasksController {
 
     @GetMapping("/{id}")
     public ResponseEntity<Task> getTaskById(@PathVariable Long id, @PathVariable Long userId) {
-        Optional<Task> taskOpt = taskService.getTaskById(id);
-        if (taskOpt.isPresent()) {
-            Task task = taskOpt.get();
-            if (task.getUserId().equals(userId)) {
-                return new ResponseEntity<>(task, HttpStatus.OK);
-            }
+        try {
+            Optional<Task> taskOpt = taskService.getTaskById(id, userId);
+            return taskOpt.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
+        } catch (InvalidTaskUserException e) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
-        return new ResponseEntity<>(HttpStatus.NOT_FOUND);
     }
 
     @PatchMapping("/{id}")
     public ResponseEntity<Task> updateTask(@PathVariable Long id, @PathVariable Long userId, @RequestBody Task task) {
-        Optional<Task> taskOpt = taskService.getTaskById(id);
-        if (taskOpt.isPresent()) {
-            Task result = taskOpt.get();
-            if (result.getUserId().equals(userId)) {
-                return new ResponseEntity<>(taskService.updateTaskFields(id, task),  HttpStatus.OK);
-            }
+        try {
+            return new ResponseEntity<>(taskService.updateTaskFields(id, userId, task), HttpStatus.OK);
+        } catch (InvalidTaskUserException e) {
+            return new ResponseEntity<>(HttpStatus.FORBIDDEN);
         }
-        return new ResponseEntity<>(HttpStatus.FORBIDDEN);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteTask(@PathVariable Long id, @PathVariable Long userId) {
-        if (taskService.deleteTaskById(id, userId)) {
+        try {
+            taskService.deleteTaskById(id, userId);
             return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+        } catch (InvalidTaskUserException e) {
+            return new ResponseEntity<>(HttpStatus.FORBIDDEN);
         }
-        return new ResponseEntity<>(HttpStatus.FORBIDDEN);
     }
 }

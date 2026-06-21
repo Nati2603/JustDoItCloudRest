@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import teccr.justdoitcloud.data.Task;
 import teccr.justdoitcloud.data.User;
+import teccr.justdoitcloud.exceptions.InvalidTaskUserException;
 import teccr.justdoitcloud.repository.TaskRepository;
 import teccr.justdoitcloud.repository.UserRepository;
 import teccr.justdoitcloud.service.external.taskgenerator.TaskGenerator;
@@ -63,25 +64,36 @@ public class TaskService {
         return taskRepository.save(task);
     }
 
-    public Optional<Task> getTaskById(Long id) {
+    public Optional<Task> getTaskById(Long id, Long userId) {
         if (id == null || id < 0) {
             return Optional.empty();
         }
-        return taskRepository.findById(id);
+        Optional<Task> task = taskRepository.findById(id);
+        if (task.isPresent()) {
+            Task existingTask = task.get();
+            if  (!existingTask.getUserId().equals(userId)) {
+                throw new InvalidTaskUserException(id, userId);
+            }
+        }
+        return task;
     }
 
-    public Task updateTaskFields(Long id, Task updatedTask) {
-        return taskRepository.findById(id)
-                .map(existingTask -> {
-                    if (updatedTask.getDescription() != null && !updatedTask.getDescription().trim().isEmpty()) {
-                        existingTask.setDescription(updatedTask.getDescription().trim());
-                    }
-                    if (updatedTask.getStatus() != null) {
-                        existingTask.setStatus(updatedTask.getStatus());
-                    }
-                    return taskRepository.save(existingTask);
-                })
-                .orElseThrow(() -> new RuntimeException("Task not found with id: " + id));
+    public Task updateTaskFields(Long id, Long userId, Task updatedTask) {
+        Optional<Task> optTask = taskRepository.findById(id);
+        if  (optTask.isPresent()) {
+            Task existingTask = optTask.get();
+            if (existingTask.getUserId().equals(userId)) {
+                if (updatedTask.getDescription() != null && !updatedTask.getDescription().trim().isEmpty()) {
+                    existingTask.setDescription(updatedTask.getDescription().trim());
+                }
+                if (updatedTask.getStatus() != null) {
+                    existingTask.setStatus(updatedTask.getStatus());
+                }
+                return taskRepository.save(existingTask);
+            }
+            throw new InvalidTaskUserException(id, userId);
+        }
+        throw new RuntimeException("Task not found with id: " + id);
     }
 
     public void archiveAndDeleteById(Long id) {
@@ -104,16 +116,16 @@ public class TaskService {
         taskRepository.deleteById(id);
     }
 
-    public boolean deleteTaskById(Long id, Long userId) {
+    public void deleteTaskById(Long id, Long userId) {
         Optional<Task> maybeTask = taskRepository.findById(id);
         if (maybeTask.isPresent()) {
             Task task = maybeTask.get();
             if  (task.getUserId().equals(userId)) {
                 taskRepository.deleteById(id);
-                return true;
+            } else {
+                throw new InvalidTaskUserException(id, userId);
             }
         }
-        return false;
     }
 
 }
