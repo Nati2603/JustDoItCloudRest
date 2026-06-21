@@ -73,8 +73,10 @@ public class TasksController {
     }
 
     @DeleteMapping("/{id}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteTask(@PathVariable Long id) {
-        taskService.deleteTaskById(id);
+    public ResponseEntity<Void> deleteTask(@PathVariable Long id, @PathVariable Long userId) {
+        if (taskService.deleteTaskById(id, userId)) {
+            return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+        }
+        return new ResponseEntity<>(HttpStatus.FORBIDDEN);
     }
 }

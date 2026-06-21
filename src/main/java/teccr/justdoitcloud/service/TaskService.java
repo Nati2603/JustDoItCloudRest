@@ -84,7 +84,7 @@ public class TaskService {
                 .orElseThrow(() -> new RuntimeException("Task not found with id: " + id));
     }
 
-    public void deleteTaskById(Long id) {
+    public void archiveAndDeleteById(Long id) {
         Optional<Task> maybeTask = taskRepository.findById(id);
         if (maybeTask.isEmpty()) {
             throw new RuntimeException("Task not found with id: " + id);
@@ -102,6 +102,18 @@ public class TaskService {
         });
 
         taskRepository.deleteById(id);
+    }
+
+    public boolean deleteTaskById(Long id, Long userId) {
+        Optional<Task> maybeTask = taskRepository.findById(id);
+        if (maybeTask.isPresent()) {
+            Task task = maybeTask.get();
+            if  (task.getUserId().equals(userId)) {
+                taskRepository.deleteById(id);
+                return true;
+            }
+        }
+        return false;
     }
 
 }
